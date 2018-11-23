@@ -42,6 +42,8 @@ changeip()
 		changeip
 	else
 		clear
-		echo "We found Ip address: ${ipaddr}"
+		echo "\e[0;34m Yeah! We found Ip address \e[0m: \e[0;32m${ipaddr}\e[0m"
 	fi
 }
+
+changeip
