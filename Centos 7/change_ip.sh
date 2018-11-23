@@ -42,7 +42,7 @@ changeip()
 		changeip
 	else
 		clear
-		echo "\e[0;34m Yeah! We found Ip address \e[0m: \e[0;32m${ipaddr}\e[0m"
+		echo -e "\e[0;34m Yeah! We found Ip address \e[0m: \e[0;32m${ipaddr}\e[0m"
 	fi
 }
 
