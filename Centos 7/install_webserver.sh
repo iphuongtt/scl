@@ -22,6 +22,7 @@ server_hdd=$( df -h | awk 'NR==2 {print $2}' )
 server_swap_total=$(awk '/SwapTotal/ {print $2}' /proc/meminfo)
 server_swap_mb=`echo "scale=0;$server_swap_total/1024" | bc`
 current_time=`date '+%Y-%m-%d_%H_%M_%S'`
+low_ram='262144' # 256MB
 
 printf "=========================================================================\n"
 printf "Your server infomation \n"
