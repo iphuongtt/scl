@@ -1,6 +1,11 @@
 #!bin/bash
 # Update system
 
+if [ $(id -u) != "0" ]; then
+    printf "Bạn cần quyền root để thực hiện script này. Run \"sudo su\" to become root!\n"
+    exit
+fi
+
 yum -y install gawk bc wget lsof
 
 clear
@@ -35,7 +40,8 @@ if [ $server_ram_total -lt $low_ram ]; then
 	echo "huy cai dat..."
 	exit
 fi
-sleep 3
+
+read -n 1 -s -r -p "Nhấn phím bất kỳ để tiếp tục"
 
 clear
 printf "=========================================================================\n"
