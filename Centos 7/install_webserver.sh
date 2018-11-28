@@ -2,7 +2,7 @@
 # Update system
 
 if [ $(id -u) != "0" ]; then
-    printf "Bạn cần quyền root để thực hiện script này. Run \"sudo su\" to become root!\n"
+    printf "You need to be root to perform this command. Run \"sudo su\" to become root!\n"
     exit
 fi
 
@@ -21,17 +21,18 @@ server_ram_mb=`echo "scale=0;$server_ram_total/1024" | bc`
 server_hdd=$( df -h | awk 'NR==2 {print $2}' )
 server_swap_total=$(awk '/SwapTotal/ {print $2}' /proc/meminfo)
 server_swap_mb=`echo "scale=0;$server_swap_total/1024" | bc`
+current_time=`date '+%Y-%m-%d_%H_%M_%S'`
 
 printf "=========================================================================\n"
-printf "Thong so server cua ban nhu sau \n"
+printf "Your server infomation \n"
 printf "=========================================================================\n"
-echo "Loai CPU : $cpu_name"
-echo "Tong so CPU core : $cpu_cores"
-echo "Toc do moi core : $cpu_freq MHz"
-echo "Tong dung luong RAM : $server_ram_mb MB"
-echo "Tong dung luong swap : $server_swap_mb MB"
-echo "Tong dung luong o dia : $server_hdd GB"
-echo "IP cua server la : $server_ip"
+echo "CPU Name : $cpu_name"
+echo "Number CPU core : $cpu_cores"
+echo "Speed of core : $cpu_freq MHz"
+echo "Total RAM : $server_ram_mb MB"
+echo "Total swap : $server_swap_mb MB"
+echo "HDD : $server_hdd GB"
+echo "IP server : $server_ip"
 printf "=========================================================================\n"
 printf "=========================================================================\n"
 
@@ -41,7 +42,7 @@ if [ $server_ram_total -lt $low_ram ]; then
 	exit
 fi
 
-read -n 1 -s -r -p "Nhấn phím bất kỳ để tiếp tục"
+read -n 1 -s -r -p "Press any key to continue"
 
 clear
 printf "=========================================================================\n"
@@ -80,8 +81,52 @@ firewall-cmd --permanent --zone=public --add-service=https
 firewall-cmd --reload
 
 yum install yum-utils -y
-$( yum-config-manager --enable remi-php$php_install )
-$( yum --enablerepo=remi,remi-php$php_install install php-fpm php-common -y )
-$( yum --enablerepo=remi,remi-php$php_install install php-opcache php-pecl-apcu php-cli php-pear php-pdo php-mysqlnd php-pgsql php-pecl-mongodb php-pecl-redis php-pecl-memcache php-pecl-memcached php-gd php-mbstring php-mcrypt php-xml php-pecl-zip -y )
+yum-config-manager --enable remi-php$php_install
+yum --enablerepo=remi,remi-php$php_install install php-fpm php-common -y
+yum --enablerepo=remi,remi-php$php_install install php-opcache php-pecl-apcu php-cli php-pear php-pdo php-mysqlnd php-pgsql php-pecl-mongodb php-pecl-redis php-pecl-memcache php-pecl-memcached php-gd php-mbstring php-mcrypt php-xml php-pecl-zip -y
+
 systemctl enable php-fpm
 systemctl start php-fpm
+
+# Config Php
+cp /etc/php.ini /etc/php.ini.backup$current_time
+sed -i 's/cgi.fix_pathinfo=1/cgi.fix_pathinfo=0/' /etc/php.ini
+
+# Config php-fpm
+cp /etc/php-fpm.d/www.conf /etc/php-fpm.d/www.conf.backup$current_time
+sed -i 's/user = apache/user = nginx/' /etc/php-fpm.d/www.conf
+sed -i 's/group = apache/group = nginx/' /etc/php-fpm.d/www.conf
+sed -i 's/listen.owner = nobody/listen.owner = nginx/' /etc/php-fpm.d/www.conf
+sed -i 's/listen.group = nobody/listen.group = nginx/' /etc/php-fpm.d/www.conf
+sed -i 's/listen = /var/run/php-fpm/php-fpm.sock/listen = /var/run/php-fpm/php-fpm.sock/' /etc/php-fpm.d/www.conf
+
+systemctl restart php-fpm
+
+# Config Nginx
+cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.backup$current_time
+
+cat > "/etc/nginx/conf.d/default.conf" <<END
+server {
+    listen   80;
+    server_name  ${server_ip};    # note that these lines are originally from the "location /" block
+    root   /var/www/html;
+    index index.php index.html index.htm;    
+    location / {
+        try_files $uri $uri/ =404;
+    }
+    error_page 404 /404.html;
+    error_page 500 502 503 504 /50x.html;
+    location = /50x.html {
+        root /var/www/html;
+    }    
+    location ~ \.php$ {
+        try_files $uri =404;
+        fastcgi_pass unix:/var/run/php-fpm/php-fpm.sock;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+}
+END
+
+systemctl restart nginx
